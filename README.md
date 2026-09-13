@@ -76,11 +76,11 @@ Install the current Archipelago release on your computer.
 
 After installation, locate your Archipelago installation directory.
 
-You will need access to the Archipelago `lib/worlds` directory.
+You will need access to the Archipelago `lib/worlds` directory if you wish to manually install.
 
 ---
 
-## 2. Install the BPM `.apworld`
+## 2. Manually Install the BPM `.apworld`
 
 Download the BPM `.apworld` release from the project's Releases page.
 
@@ -103,6 +103,17 @@ Do not extract the `.apworld` file.
 It should remain a single `.apworld` file.
 
 ---
+
+## 2B. Auto Install the BPM `.apworld`
+
+Download the BPM `.apworld` release from the project's Releases page.
+
+Load up the archipelago application and navigate to `Install APWorld`
+
+Click `Open` and navigate to your `.apworld` installation location.
+
+Select the `.apworld` and relaunch the archipelago application.
+
 
 ## 3. Install UE4SS
 
