@@ -5,6 +5,9 @@ Archipelago multiworld integration for **BPM: Bullets Per Minute**, built as a U
 > **Current release: v1.5.0 — First Real Patch**
 >
 > The first production patch is focused on the core bridge plus the gameplay events that have been verified in BPM: coins, Treasure rewards, and Challenge rewards. Startup stability/crash investigation is intentionally a separate follow-up phase.
+>
+> This version is only tested for Windows x64 architecture.
+> Future versions will be tested on steam deck and linux architectures, but remain questionable due to the need of implementing UE4SS which is Windows-only.
 
 ## Current Status
 
