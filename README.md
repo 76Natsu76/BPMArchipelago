@@ -1,666 +1,256 @@
-# BPM: Bullets Per Minute — Archipelago
+# BPM: Bullets Per Minute — Archipelago Integration
 
-A community Archipelago implementation for **BPM: Bullets Per Minute**.
+Archipelago multiworld integration for **BPM: Bullets Per Minute**, built as a UE4SS Lua mod with a small standalone Python client and an IPC bridge between BPM and Archipelago.
 
-This project connects BPM to the [Archipelago Multiworld Randomizer](https://archipelago.gg/), allowing BPM checks and items to participate in an Archipelago multiworld.
+> **Current release: v1.5.0 — First Real Patch**
+>
+> The first production patch is focused on the core bridge plus the gameplay events that have been verified in BPM: coins, Treasure rewards, and Challenge rewards. Startup stability/crash investigation is intentionally a separate follow-up phase.
 
-> **Current status:** Windows support
-> **Current release:** v1.0.1 MVP
+## Current Status
 
----
+### v1.5.0 first real patch
 
-## Features
+The current production patch includes:
 
-The current MVP includes:
+- Direct BPM → Archipelago location checks through the IPC bridge.
+- 10 individual coin checks.
+- Coin milestones at 5, 10, and 25 coins.
+- **10 Treasure reward checks.**
+  - Locked chests have been verified to enter BPM's Treasure reward path, so they are treated as Treasure locations.
+- **10 Challenge reward checks.**
+- Automatic incoming Archipelago item delivery through confirmed game-event hooks.
+- Persistent per-session coin/reward progress.
+- Persistent processed-item tracking so received AP items are not granted twice.
+- Archipelago Victory delivery through the existing `GOAL` IPC message.
+- Existing verified key/stat/shield item grants and Health Container handling retained from the diagnostic builds.
 
-* 14 Room Clear checks
-* 10 individual Coin checks
-* 3 cumulative Coin milestone checks
+The production patch does **not** currently use `TrySpawnRewards`; testing showed that it was not the relevant trigger for the reward interactions being tracked.
 
-  * Collect 5 Coins
-  * Collect 10 Coins
-  * Collect 25 Coins
-* Defeat Nidhogg goal
-* Archipelago item delivery
-* Coins
-* Keys
-* Health Containers
-* Weapon damage upgrades
-* Critical upgrades
-* Range upgrades
-* Movement Speed upgrades
-* Luck upgrades
-* Extra Ammo upgrades
-* Ability Power upgrades
-* Movement Boost
-* Archipelago session-aware item synchronization
-* Automatic reconnect/index synchronization through the companion client
+`Movement Boost` is not included as an AP item.
 
----
+## Verified BPM Reward Events
 
-## Requirements
-
-### Game
-
-A Windows installation of:
-
-**BPM: Bullets Per Minute**
-
-The game must be installed through Steam.
-
-### Archipelago
-
-An Archipelago installation capable of loading custom `.apworld` files.
-
-Download Archipelago from:
-
-https://archipelago.gg/
-
-### Mod Loader
-
-This project currently uses **UE4SS** to load the BPM Lua mod.
-
-### Windows
-
-The current release has been tested on Windows.
-
-Linux, Steam Deck, and other platforms are not currently supported.
-
----
-
-# Installation
-
-## 1. Install Archipelago
-
-Install the current Archipelago release on your computer.
-
-After installation, locate your Archipelago installation directory.
-
-You will need access to the Archipelago `lib/worlds` directory if you wish to manually install.
-
----
-
-## 2. Manually Install the BPM `.apworld`
-
-Download the BPM `.apworld` release from the project's Releases page.
-
-Copy the `.apworld` file into:
+The following BPM functions have been verified with live UE4SS `RegisterHook` callbacks:
 
 ```text
-<Archipelago installation>\lib\worlds\
+/Script/BPM.BPMGameInstance:ConsumeAndReturnRandomTreasureItem
+/Script/BPM.BPMGameInstance:ConsumeAndReturnRandomChallengeItem
+```
+
+A locked chest was also verified to reach the Treasure function, which provides the runtime event needed for the planned Treasure/chest AP locations.
+
+The following was tested but is **not** used by the production reward system:
+
+```text
+/Script/BPM.BPMRoomScriptActor:TrySpawnRewards
+```
+
+It did not fire during the relevant reward tests.
+
+## Health Behavior
+
+BPM's `GiveHealth(25)` function was verified through UE4SS, but it does not reproduce the normal pickup behavior we want for an Archipelago Health item: a test at 50/100 HP produced 100/100 HP.
+
+Therefore the production patch does not use `GiveHealth(25)` as the final implementation of an AP Health pickup.
+
+The intended future behavior is:
+
+```text
+current HP + 25, capped at maximum HP
 ```
 
 For example:
 
 ```text
-C:\ProgramData\Archipelago\lib\worlds\
+50/100  -> 75/100
+90/100  -> 100/100
 ```
 
-or wherever your Archipelago installation is located.
+A future patch will add a safe implementation once the correct underlying BPM health-setting path has been identified.
 
-Do not extract the `.apworld` file.
+## Archipelago World
 
-It should remain a single `.apworld` file.
+The matching v1.5.0 APWorld adds the production Treasure and Challenge reward locations to the existing BPM location pool.
 
----
+The first patch uses:
 
-## 2B. Auto Install the BPM `.apworld`
+- 10 Treasure locations.
+- 10 Challenge Reward locations.
+- The existing coin, room, key, stat, item, weapon, boss, altar, floor, and goal catalog already present in the project.
+- Nidhogg remains the Victory/goal event.
 
-Download the BPM `.apworld` release from the project's Releases page.
+The Lua mod and APWorld should be kept at the same release version.
 
-Load up the archipelago application and navigate to `Install APWorld`
+## Installation
 
-Click `Open` and navigate to your `.apworld` installation location.
+### 1. UE4SS
 
-Select the `.apworld` and relaunch the archipelago application.
+BPM testing currently uses the Windows version of BPM with UE4SS.
 
+Install UE4SS in BPM's `Binaries/Win64` directory using the appropriate UE4SS build for the game.
 
-## 3. Install UE4SS
-
-Install UE4SS for BPM according to the UE4SS installation instructions.
-
-The game should contain the UE4SS files in the appropriate BPM installation directory.
-
-Your BPM installation should ultimately contain a structure similar to:
-
-```text
-BPM BULLETS PER MINUTE\
-└── Windows NoEditor\
-    └── BPM\
-        └── Binaries\
-            └── Win64\
-                └── Mods\
-```
-
----
-
-## 4. Install BPMArchipelago
-
-Copy the `BPMArchipelago` mod into the game's UE4SS Mods directory.
-
-The final structure should look similar to:
-
-```text
-BPM\
-└── Binaries\
-    └── Win64\
-        └── Mods\
-            └── BPMArchipelago\
-                ├── IPC\
-                └── scripts\
-                    └── main.lua
-```
-
-The exact location may differ depending on your Steam installation.
-
-For a default installation, the important part is that:
-
-```text
-BPMArchipelago
-```
-
-is inside:
-
-```text
-Binaries\Win64\Mods\
-```
-
----
-
-## 5. Enable the mod
-
-Open the UE4SS `mods.txt` file.
-
-Add or enable:
+The mod is enabled through `mods.txt` with:
 
 ```text
 BPMArchipelago : 1
 ```
 
-The relevant section should look similar to:
+The project also depends on the UE4SS console/keybind functionality already used during development.
+
+### 2. BPM Mod Files
+
+Place the production Lua file as:
 
 ```text
-ConsoleCommandsMod : 1
-ConsoleEnablerMod : 1
-BPModLoaderMod : 1
-BPML_GenericFunctions : 1
-BPMArchipelago : 1
+BPM/
+└── Binaries/
+    └── Win64/
+        └── Mods/
+            └── BPMArchipelago/
+                ├── main.lua
+                └── IPC/
 ```
 
-Save the file.
+The Lua script automatically uses the sibling `IPC` directory for communication files.
 
----
+### 3. Archipelago World
 
-# Running the Archipelago Client
-
-The BPM mod communicates with Archipelago through the included standalone client.
-
-The client handles:
-
-* Archipelago server connection
-* Receiving items
-* Sending location checks
-* Archipelago session tracking
-* Synchronizing received-item indexes
-* Communication with the BPM Lua mod
-
-Start the client using the provided Windows launcher.
-
-The launcher is:
+Install:
 
 ```text
-run_bpm_client.bat
+bpm_bullets_per_minute_v1.5.0.apworld
 ```
 
-The expected command format is:
+in the appropriate Archipelago custom-world directory.
+
+The `.apworld` contains the BPM locations/items used by the v1.5.0 Lua runtime.
+
+### 4. Standalone BPM Client
+
+The standalone Python client connects BPM's IPC directory to an Archipelago server.
+
+The launch format used by the current client is:
 
 ```text
-run_bpm_client.bat HOST:PORT SLOT PASSWORD "IPC"
+run_bpm_client.bat HOST:PORT SLOT PASSWORD "IPC_PATH"
 ```
 
-Example:
+The client writes incoming Archipelago items to `incoming.txt` and reads BPM checks/reward acknowledgements from `outgoing.txt`.
+
+## IPC Files
+
+The main bridge files are:
 
 ```text
-run_bpm_client.bat archipelago.gg:61945 PlayerName "" "D:\SteamLibrary\steamapps\common\BPM BULLETS PER MINUTE\Windows NoEditor\BPM\Binaries\Win64\Mods\BPMArchipelago\IPC"
+IPC/
+├── incoming.txt
+├── outgoing.txt
+├── client_status.txt
+├── ap_connected.flag
+├── delivered_items.txt
+├── processed_items.txt
+├── coin_state.txt
+└── reward_state.txt
 ```
 
-The exact host, port, slot name, and password depend on the Archipelago game session.
+The Python client persists delivered Archipelago item indices in `delivered_items.txt`.
 
----
+The Lua mod persists processed BPM-side item indices in `processed_items.txt` and session-scoped location progress in the state files.
 
-# Connecting to a Game
+## Useful In-Game Commands
 
-A typical setup is:
-
-```text
-Archipelago Server
-       │
-       │ WebSocket
-       ▼
-BPM Archipelago Client
-       │
-       │ IPC files
-       ▼
-BPMArchipelago UE4SS Mod
-       │
-       ▼
-BPM: Bullets Per Minute
-```
-
-The BPM client and game mod use the `IPC` directory to exchange data.
-
----
-
-# Archipelago Items
-
-The current release supports the following received items:
-
-| Item              | Effect                        |
-| ----------------- | ----------------------------- |
-| Coins +5          | Adds 5 coins                  |
-| Coins +10         | Adds 10 coins                 |
-| Keys +1           | Adds 1 key                    |
-| Keys +5           | Adds 5 keys                   |
-| Health Container  | Adds a health container       |
-| Damage Up         | Adds 1 weapon damage upgrade  |
-| Critical Up       | Adds 1 critical upgrade       |
-| Range Up          | Adds 1 range upgrade          |
-| Movement Speed Up | Adds 1 movement speed upgrade |
-| Luck Up           | Adds 1 luck upgrade           |
-| Extra Ammo Up     | Adds 1 extra ammo upgrade     |
-| Ability Power Up  | Adds 1 ability power upgrade  |
-| Movement Boost    | Adds 1 movement boost         |
-| Damage Up +2      | Adds 2 weapon damage upgrades |
-
-Victory is handled as an Archipelago goal event rather than a normal player inventory item.
-
----
-
-# Location Checks
-
-The current MVP contains:
-
-### Room Clears
-
-```text
-Room Clear 01
-Room Clear 02
-Room Clear 03
-Room Clear 04
-Room Clear 05
-Room Clear 06
-Room Clear 07
-Room Clear 08
-Room Clear 09
-Room Clear 10
-Room Clear 11
-Room Clear 12
-Room Clear 13
-Room Clear 14
-```
-
-### Individual Coins
-
-```text
-Coin 001
-Coin 002
-Coin 003
-Coin 004
-Coin 005
-Coin 006
-Coin 007
-Coin 008
-Coin 009
-Coin 010
-```
-
-### Coin Milestones
-
-```text
-Collect 5 Coins
-Collect 10 Coins
-Collect 25 Coins
-```
-
-### Goal
-
-```text
-Defeat Nidhogg
-```
-
----
-
-# Coin Checks
-
-The first ten coin pickups in an Archipelago session generate individual checks:
-
-```text
-Coin #1  → Coin 001
-Coin #2  → Coin 002
-Coin #3  → Coin 003
-...
-Coin #10 → Coin 010
-```
-
-Coin milestones are tracked separately.
-
-For example:
-
-```text
-5th coin
- ├── Coin 005
- └── Collect 5 Coins
-
-10th coin
- ├── Coin 010
- └── Collect 10 Coins
-
-25th coin
- └── Collect 25 Coins
-```
-
-After `Coin 010`, additional coins no longer generate individual Coin locations, but the cumulative milestone counter continues toward `Collect 25 Coins`.
-
----
-
-# Important MVP Note
-
-Individual Coin locations currently use **pickup order** rather than a permanent identity for each physical coin actor.
-
-That means:
-
-```text
-first tracked pickup  = Coin 001
-second tracked pickup = Coin 002
-...
-```
-
-Coin progress is associated with the active Archipelago session so that restarting the game/mod does not intentionally create a new sequence within the same session.
-
-A future release may replace pickup-order tracking with persistent physical coin identities if a reliable method can be established.
-
----
-
-# Useful Debug Commands
-
-The BPMArchipelago mod provides several console commands for testing and diagnostics.
-
-## Bridge status
+The production build keeps the main operational diagnostics rather than the large discovery/debugging suite.
 
 ```text
 BPMAP_STATUS
-```
-
-## IPC path
-
-```text
-BPMAP_PATH
-```
-
-## Archipelago status
-
-```text
 BPMAP_AP_STATUS
-```
-
-or:
-
-```text
-AP_STATUS
-```
-
-## Coin status
-
-```text
+BPMAP_PATH
+BPMAP_HOOKS
+BPMAP_PROCESS_ITEMS
+BPMAP_AUTO_ITEMS
+BPMAP_AUTO_LAST
+BPMAP_REGISTERHOOK_STATUS
+BPMAP_REWARD_STATUS
 BPMAP_COIN_STATUS
-```
-
-## Install coin pickup checking
-
-```text
-BPMAP_COIN_CHECK
-```
-
-## Synchronize coin session
-
-```text
 BPMAP_COIN_SESSION
 ```
 
-## Reset local coin tracking
+The manual location-check command remains available:
 
 ```text
-BPMAP_COIN_RESET
+BPMAP_CHECK <location_id>
 ```
 
-> `BPMAP_COIN_RESET` only resets the local Lua tracking state.
-> It does **not** undo checks already sent to the Archipelago server.
+## Current Automatic Item Delivery Design
 
----
+Automatic AP item delivery is **event-driven**.
 
-# Manually Testing Location Checks
+The project previously tested UE4SS delayed actions, game-thread timers, tick hooks, and custom event approaches. Those approaches were not reliable in the current BPM/UE4SS configuration, so the production runtime uses confirmed `RegisterHook` callbacks instead.
 
-Any known BPM location can be queued manually.
+Only one queued AP item is processed per trigger, with re-entry protection to prevent an AP grant from immediately recursively processing another item.
 
-Example:
+This design avoids the unavailable delayed-action mode and keeps the automatic delivery path on confirmed BPM gameplay callbacks.
+
+## Development History
+
+The project progressed through several diagnostic builds before the first production patch.
+
+Important verified milestones included:
+
+1. Direct BPM location checks reaching Archipelago.
+2. Archipelago → BPM incoming item transport working through the standalone client and IPC directory.
+3. Manual AP item receipt working.
+4. Automatic AP item processing working through confirmed `RegisterHook` gameplay events.
+5. Verified numeric reward/stat functions for keys, damage, critical, range, movement speed, luck, extra ammo, ability power, health containers, and shield.
+6. Verified Treasure and Challenge reward event functions.
+7. Verification that locked chests use the Treasure reward path.
+8. v1.5.0 — first production patch.
+
+## Known Issues / Next Development Phase
+
+### Startup stability
+
+The largest remaining issue is that BPM may crash repeatedly during startup/new-run initialization before eventually launching successfully. The project will investigate this separately from the now-established reward/check architecture.
+
+The next stability work should prioritize identifying which hook or initialization behavior contributes to those crashes without changing the already verified Treasure/Challenge reward logic.
+
+### Additional location checks
+
+More automatic checks will be added after the startup behavior is understood. Candidate areas include additional room/floor/boss/altar/item/weapon events and other reward mechanics discovered during diagnostics.
+
+### Health item
+
+The final AP Health implementation still needs a native BPM path that reproduces the game's observed +25-or-to-max pickup behavior rather than the full-heal behavior of `GiveHealth(25)`.
+
+## Repository Development Notes
+
+The project is intended to be developed incrementally:
 
 ```text
-BPMAP_CHECK 11993103
+Confirmed runtime behavior
+        ↓
+Targeted diagnostic hook
+        ↓
+Live verification in BPM
+        ↓
+Production Lua/APWorld update
+        ↓
+Stability testing
+        ↓
+Additional location expansion
 ```
 
-That queues:
+Large object/function discovery scans are manual development tools only and should not be run automatically during normal gameplay.
 
-```text
-Coin 001
-```
+High-frequency gameplay callbacks should remain lightweight and should not perform broad UObject scans or unnecessary filesystem work.
 
-You can also use the more convenient coin command:
+## Credits / Dependencies
 
-```text
-BPMAP_CHECK_COIN 1
-```
+This project depends on:
 
-For example:
+- [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) for Unreal Engine mod loading, Lua scripting, reflection, and function hooks.
+- [Archipelago](https://archipelago.gg/) for multiworld generation and network communication.
 
-```text
-BPMAP_CHECK_COIN 10
-```
+## License
 
-queues `Coin 010`.
-
-Milestones can be tested with:
-
-```text
-BPMAP_CHECK_MILESTONE 5
-BPMAP_CHECK_MILESTONE 10
-BPMAP_CHECK_MILESTONE 25
-```
-
-Room checks can be tested with:
-
-```text
-BPMAP_CHECK_ROOM 1
-BPMAP_CHECK_ROOM 14
-```
-
-The Nidhogg goal can be tested with:
-
-```text
-BPMAP_CHECK_BOSS
-```
-
----
-
-# Manual Item Processing
-
-Received Archipelago items are intentionally processed manually in the current MVP to avoid performing filesystem work on the game's frame/tick path.
-
-Run:
-
-```text
-BPMAP_PROCESS_ITEMS
-```
-
-The command processes the queued items in the BPM IPC directory.
-
-This design is intentional for the current release.
-
----
-
-# Troubleshooting
-
-## The game does not recognize BPMAP commands
-
-Check that:
-
-```text
-BPMArchipelago : 1
-```
-
-is enabled in `mods.txt`.
-
-Also verify that UE4SS and the required UE4SS support mods are installed.
-
----
-
-## The client connects but the game does not receive items
-
-Check:
-
-```text
-BPMAP_PATH
-```
-
-Make sure the reported IPC directory is the same directory being used by the standalone BPM Archipelago client.
-
-Then run:
-
-```text
-BPMAP_PROCESS_ITEMS
-```
-
----
-
-## A received item is not being granted
-
-Check the BPM IPC directory for:
-
-```text
-incoming.txt
-processed_items.txt
-outgoing.txt
-call_tests.txt
-```
-
-Then run:
-
-```text
-BPMAP_PROCESS_ITEMS
-```
-
-The console result should indicate whether the item was granted or whether the player/function lookup failed.
-
----
-
-## Coin checks are not being sent
-
-Run:
-
-```text
-BPMAP_COIN_CHECK
-```
-
-Then:
-
-```text
-BPMAP_COIN_STATUS
-```
-
-The status should report:
-
-```text
-installed=true
-```
-
-After picking up a coin, run:
-
-```text
-BPMAP_COIN_STATUS
-```
-
-The callback counter should increase.
-
----
-
-# Current Release
-
-## v1.0.1 — MVP
-
-The first MVP content release includes:
-
-* 14 Room Clear locations
-* 10 individual Coin locations
-* 3 Coin milestone locations
-* Nidhogg goal
-* Current supported BPM item set
-* Stable Archipelago client communication
-* Session-aware received-item handling
-* Windows support
-
-Existing location IDs from earlier releases are preserved for compatibility.
-
----
-
-# Development Status
-
-This project is actively being developed.
-
-The current MVP focuses on establishing a reliable Archipelago gameplay loop before expanding the location and item set.
-
-Planned future work may include:
-
-* More BPM location checks
-* More item types
-* Improved persistent coin identity
-* Additional room/event logic
-* Expanded boss checks
-* Improved non-Windows support
-* Additional quality-of-life tooling
-
----
-
-# Project Structure
-
-The repository is organized around three main components:
-
-```text
-BPM Archipelago
-│
-├── APWorld
-│   ├── __init__.py
-│   ├── items.py
-│   ├── locations.py
-│   ├── archipelago.json
-│   └── README.md
-│
-├── BPMArchipelago
-│   ├── scripts/
-│   │   └── main.lua
-│   └── IPC/
-│
-└── BPM Client
-    ├── BPMClientStandalone.py
-    └── run_bpm_client.bat
-```
-
----
-
-# Credits
-
-Created by **S3ven_Six**.
-
-BPM: Bullets Per Minute is developed by Awe Interactive.
-
-Archipelago is an open-source multiworld randomizer platform.
-
-This project is a community-made integration and is not affiliated with Awe Interactive or the official Archipelago project.
+See the repository's license file for project-specific licensing information.
